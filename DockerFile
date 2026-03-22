@@ -1,0 +1,18 @@
+FROM golang:1.23-alpine
+
+WORKDIR /app
+
+RUN apk add --no-cache git tzdata
+
+ENV TZ=Asia/Tokyo
+
+# ホットリロード用ツール
+RUN go install github.com/air-verse/air@latest
+
+# go.sum は go mod tidy 前は存在しないため * でオプショナルにする
+COPY go.mod go.sum* ./
+RUN go mod download
+
+EXPOSE 8080
+
+CMD ["air"]

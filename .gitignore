@@ -1,0 +1,16 @@
+# Go
+*.exe
+*.out
+/vendor/
+
+# SQLite
+data
+*.db
+*.db-shm
+*.db-wal
+
+# 環境変数
+.env
+
+# OS
+.DS_Store

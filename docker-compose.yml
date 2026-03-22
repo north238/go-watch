@@ -1,0 +1,28 @@
+services:
+  go:
+    build:
+      context: .
+    container_name: gowatch-go
+    ports:
+      - '8080:8080'
+    volumes:
+      - .:/app
+      - ./data:/data
+    environment:
+      - DB_PATH=/data/gowatch.db
+      - GO_ENV=development
+    depends_on: []
+    tty: true
+
+  react:
+    build:
+      context: ./frontend
+    container_name: gowatch-react
+    ports:
+      - '5173:5173'
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:8080
+    tty: true
