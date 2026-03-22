@@ -2,9 +2,10 @@
 *.exe
 *.out
 /vendor/
+tmp/*
 
 # SQLite
-data
+data/*
 *.db
 *.db-shm
 *.db-wal
