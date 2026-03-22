@@ -1,0 +1,14 @@
+{
+  "name": "GoWatch Dev",
+  "dockerComposeFile": "../docker-compose.yml",
+  "service": "go",
+  "workspaceFolder": "/app",
+  "customizations": {
+    "vscode": {
+      "extensions": ["golang.go"],
+      "settings": {
+        "go.goroot": "/usr/local/go"
+      }
+    }
+  }
+}
