@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"gowatch/internal/handler"
 	"gowatch/internal/store"
 	"log"
 	"net/http"
@@ -23,11 +24,16 @@ func main() {
 	log.Println("✅ SQLite connected and migrations applied")
 	log.Println("✅ GoWatch server initialized successfully")
 
+	targetHandler := handler.NewTargetHandler(st)
+	http.HandleFunc("POST /api/targets", targetHandler.Create)
+	http.HandleFunc("GET /api/targets", targetHandler.Index)
+	http.HandleFunc("DELETE /api/targets/{id}", targetHandler.Delete)
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, "GoWatch server is running")
 	})
-
 	log.Println("Server starting on :8080")
+
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal(err)
 	}

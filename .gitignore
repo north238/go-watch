@@ -15,3 +15,7 @@ data/*
 
 # OS
 .DS_Store
+
+# ビルドファイル
+bin/
+build/
