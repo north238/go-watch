@@ -72,7 +72,17 @@ func (s *Store) AddTarget(ctx context.Context, url string, name string) (model.T
 	id := uuid.New().String()
 	now := time.Now()
 
-	_, err := s.db.ExecContext(ctx, "INSERT INTO targets (id, url, name, interval_sec, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)", id, url, name, 30, model.StatusUnknown, now, now)
+	_, err := s.db.ExecContext(
+		ctx,
+		"INSERT INTO targets (id, url, name, interval_sec, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		id,
+		url,
+		name,
+		30,
+		model.StatusUnknown,
+		now,
+		now,
+	)
 	if err != nil {
 		var sqliteErr sqlite3.Error
 		if errors.As(err, &sqliteErr) && sqliteErr.ExtendedCode == sqlite3.ErrConstraintUnique {
@@ -118,6 +128,56 @@ func (s *Store) DeleteTarget(ctx context.Context, id string) error {
 	_, err := s.db.ExecContext(ctx, "DELETE FROM targets WHERE id = ?", id)
 	if err != nil {
 		return fmt.Errorf("failed to delete target: %w", err)
+	}
+
+	return nil
+}
+
+// チェック結果を保存
+func (s *Store) SaveCheckResult(ctx context.Context, result model.CheckResult) error {
+	_, err := s.db.ExecContext(
+		ctx,
+		"INSERT INTO check_results (target_id, status, status_code, response_time_ms, error, checked_at) VALUES (?, ?, ?, ?, ?, ?)",
+		result.TargetID,
+		result.Status,
+		result.StatusCode,
+		result.ResponseTimeMs,
+		result.Error,
+		result.CheckedAt,
+	)
+	if err != nil {
+		return fmt.Errorf("save check result: %w", err)
+	}
+
+	return nil
+}
+
+// テーブルのステータスを更新
+func (s *Store) UpdateTargetStatus(ctx context.Context, targetId string, status model.Status) error {
+	_, err := s.db.ExecContext(
+		ctx,
+		"UPDATE check_results SET status = ?, update_at = ? WHERE id = ?",
+		status,
+		time.Now(),
+		targetId,
+	)
+	if err != nil {
+		return fmt.Errorf("update target status: %w", err)
+	}
+
+	return nil
+}
+
+// 直近の1,000件のみ残し古いものを削除
+func (s *Store) DeleteOldCheckResults(ctx context.Context, targetId string) error {
+	_, err := s.db.ExecContext(
+		ctx,
+		"DELETE FROM check_results WHERE target_id = ? AND id NOT IN (SELECT id FROM check_results WHERE target_id = ? ORDER BY checked_at DESC LIMIT 1000)",
+		targetId,
+		targetId,
+	)
+	if err != nil {
+		return fmt.Errorf("delete old check results: %w", err)
 	}
 
 	return nil
