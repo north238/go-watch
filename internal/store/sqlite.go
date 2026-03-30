@@ -156,7 +156,7 @@ func (s *Store) SaveCheckResult(ctx context.Context, result model.CheckResult) e
 func (s *Store) UpdateTargetStatus(ctx context.Context, targetId string, status model.Status) error {
 	_, err := s.db.ExecContext(
 		ctx,
-		"UPDATE check_results SET status = ?, update_at = ? WHERE id = ?",
+		"UPDATE targets SET status = ?, updated_at = ? WHERE id = ?",
 		status,
 		time.Now(),
 		targetId,

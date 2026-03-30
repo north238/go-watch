@@ -4,7 +4,9 @@ import (
 	"context"
 	"gowatch/internal/model"
 	"gowatch/internal/store"
+	"log"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -13,17 +15,10 @@ type Checker struct {
 	jobChannel    chan model.Target
 	resultChannel chan model.CheckResult
 	store         *store.Store
-	ctx           context.Context
 	ticker        *time.Ticker
+	mu            sync.Mutex
+	running       bool
 }
-
-// func (c *Checker) runCycle() {
-// 	cycleCtx, cancel := context.WithTimeout(c.ctx, 25*time.Second)
-// 	defer cancel()
-
-// 	urlCtx, cancel := context.WithTimeout(cycleCtx, 5*time.Second)
-// 	defer cancel()
-// }
 
 func New(workNum int, store *store.Store) *Checker {
 	// 1. jobの初期化
@@ -42,18 +37,17 @@ func New(workNum int, store *store.Store) *Checker {
 }
 
 func (c *Checker) Start(ctx context.Context) {
+	c.ticker = time.NewTicker(30 * time.Second)
 	// 1. Workerをgoroutineで起動する（workerNum分）
 	for i := 0; i < c.workNum; i++ {
 		go c.worker(ctx)
 	}
 
 	// 2. Tickerを起動してgoroutineでループする
-	// 別メソッドで記述
 	go c.tickerLoop(ctx)
 
 	// 3. resultChannelを受け取るループをgoroutineで起動する
-	// 別メソッドで記述
-	// go getResultChan()
+	go c.resultLoop(ctx)
 }
 
 func (c *Checker) worker(ctx context.Context) {
@@ -66,8 +60,10 @@ func (c *Checker) worker(ctx context.Context) {
 			// targetを処理する
 			// 確認したいURLを検証する
 			start := time.Now()
-			req, err := http.NewRequestWithContext(ctx, http.MethodGet, target.URL, nil)
+			cycleCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			req, err := http.NewRequestWithContext(cycleCtx, http.MethodGet, target.URL, nil)
 			if err != nil {
+				cancel()
 				continue
 			}
 			resp, err := http.DefaultClient.Do(req)
@@ -78,6 +74,7 @@ func (c *Checker) worker(ctx context.Context) {
 					Error:     err.Error(),
 					CheckedAt: time.Now(),
 				}
+				cancel()
 				continue
 			}
 			resp.Body.Close()
@@ -96,6 +93,7 @@ func (c *Checker) worker(ctx context.Context) {
 			}
 
 			// 結果を送る
+			cancel()
 			c.resultChannel <- result
 		}
 	}
@@ -118,13 +116,52 @@ func (c *Checker) tickerLoop(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-c.ticker.C:
-			targets, err := c.store.ListTargets(ctx)
+			if c.running {
+				continue
+			}
+			c.running = true
+
+			cycleCtx, cancel := context.WithTimeout(ctx, 25*time.Second)
+
+			targets, err := c.store.ListTargets(cycleCtx)
 			if err != nil {
+				cancel()
+				c.running = false
 				continue
 			}
 
 			for _, target := range targets {
 				c.jobChannel <- target
+			}
+
+			cancel()
+			c.running = false
+		}
+	}
+}
+
+func (c *Checker) resultLoop(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case result := <-c.resultChannel:
+			// 保存処理
+			if err := c.store.SaveCheckResult(ctx, result); err != nil {
+				log.Printf("saver check result: %v", err)
+				continue
+			}
+
+			// ステータス更新
+			if err := c.store.UpdateTargetStatus(ctx, result.TargetID, result.Status); err != nil {
+				log.Printf("update target status: %v", err)
+				continue
+			}
+
+			// 1,000件超過分削除
+			if err := c.store.DeleteOldCheckResults(ctx, result.TargetID); err != nil {
+				log.Printf("delete old check result: %v", err)
+				continue
 			}
 		}
 	}
