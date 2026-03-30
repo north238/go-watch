@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"gowatch/internal/checker"
 	"gowatch/internal/handler"
 	"gowatch/internal/store"
 	"log"
@@ -20,9 +22,7 @@ func main() {
 		log.Fatalf("failed to initalize store: %v", err)
 	}
 	defer st.Close()
-
-	log.Println("✅ SQLite connected and migrations applied")
-	log.Println("✅ GoWatch server initialized successfully")
+	log.Println("SQLite connected and migrations applied")
 
 	targetHandler := handler.NewTargetHandler(st)
 	http.HandleFunc("POST /api/targets", targetHandler.Create)
@@ -32,8 +32,14 @@ func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, "GoWatch server is running")
 	})
-	log.Println("Server starting on :8080")
 
+	ctx := context.Background()
+
+	c := checker.New(5, st)
+	c.Start(ctx)
+
+	// サーバー起動処理
+	log.Println("========== Server starting on :8080 ==========")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal(err)
 	}
