@@ -116,17 +116,24 @@ func (c *Checker) tickerLoop(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-c.ticker.C:
+			c.mu.Lock()
 			if c.running {
+				c.mu.Unlock()
 				continue
 			}
 			c.running = true
+			c.mu.Unlock()
 
 			cycleCtx, cancel := context.WithTimeout(ctx, 25*time.Second)
 
 			targets, err := c.store.ListTargets(cycleCtx)
 			if err != nil {
 				cancel()
+
+				c.mu.Lock()
 				c.running = false
+				c.mu.Unlock()
+
 				continue
 			}
 
@@ -135,7 +142,10 @@ func (c *Checker) tickerLoop(ctx context.Context) {
 			}
 
 			cancel()
+
+			c.mu.Lock()
 			c.running = false
+			c.mu.Unlock()
 		}
 	}
 }
