@@ -45,6 +45,11 @@ func (h *Hub) Run(ctx context.Context) {
 	}
 }
 
+// registerを送る
+func (h *Hub) Register(client *Client) {
+	h.register <- client
+}
+
 // messageを代入
 func (h *Hub) Broadcast(message []byte) {
 	h.broadcast <- message

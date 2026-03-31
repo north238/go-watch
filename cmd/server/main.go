@@ -6,6 +6,7 @@ import (
 	"gowatch/internal/checker"
 	"gowatch/internal/handler"
 	"gowatch/internal/store"
+	"gowatch/internal/websocket"
 	"log"
 	"net/http"
 	"os"
@@ -35,8 +36,16 @@ func main() {
 
 	ctx := context.Background()
 
-	c := checker.New(5, st)
+	// websocket起動
+	h := websocket.NewHub()
+	go h.Run(ctx)
+
+	// チェッカーの起動
+	c := checker.New(5, st, h)
 	c.Start(ctx)
+
+	wsHandler := handler.NewWSHandler(h)
+	http.HandleFunc("GET /ws", wsHandler.ServeWS)
 
 	// サーバー起動処理
 	log.Println("========== Server starting on :8080 ==========")

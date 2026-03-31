@@ -9,7 +9,7 @@ type Client struct {
 }
 
 // 初期化
-func ClientNew(hub *Hub, conn *ws.Conn) *Client {
+func NewClient(hub *Hub, conn *ws.Conn) *Client {
 	return &Client{
 		hub:       hub,
 		websocket: conn,
@@ -18,7 +18,7 @@ func ClientNew(hub *Hub, conn *ws.Conn) *Client {
 }
 
 // WebSocketへの書き込み処理
-func (c *Client) writePump() {
+func (c *Client) WritePump() {
 	defer func() {
 		c.hub.unregister <- c
 		c.websocket.Close()
