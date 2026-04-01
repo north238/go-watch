@@ -29,6 +29,7 @@ func main() {
 	http.HandleFunc("POST /api/targets", targetHandler.Create)
 	http.HandleFunc("GET /api/targets", targetHandler.Index)
 	http.HandleFunc("DELETE /api/targets/{id}", targetHandler.Delete)
+	http.HandleFunc("GET /api/targets/{id}/history", targetHandler.History)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, "GoWatch server is running")

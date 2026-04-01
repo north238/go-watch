@@ -182,3 +182,24 @@ func (s *Store) DeleteOldCheckResults(ctx context.Context, targetId string) erro
 
 	return nil
 }
+
+// 履歴送信API（チェック結果を返信）
+func (s *Store) GetCheckResults(ctx context.Context, targetId string, limit int) ([]model.CheckResult, error) {
+	rows, err := s.db.QueryContext(ctx, "SELECT id, target_id, status, status_code, response_time_ms, error, checked_at FROM check_results WHERE target_id = ? ORDER BY checked_at DESC LIMIT ?", targetId, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list check_results: %w", err)
+	}
+	defer rows.Close()
+
+	results := make([]model.CheckResult, 0)
+	for rows.Next() {
+		var r model.CheckResult
+		err := rows.Scan(&r.ID, &r.TargetID, &r.Status, &r.StatusCode, &r.ResponseTimeMs, &r.Error, &r.CheckedAt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list check_results scan: %w", err)
+		}
+		results = append(results, r)
+	}
+
+	return results, nil
+}

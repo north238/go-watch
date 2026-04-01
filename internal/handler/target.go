@@ -6,6 +6,7 @@ import (
 	"gowatch/internal/store"
 	"net/http"
 	"net/url"
+	"strconv"
 )
 
 type TargetHandler struct {
@@ -73,6 +74,30 @@ func (h *TargetHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent) // 204
+}
+
+// 履歴取得
+func (h *TargetHandler) History(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	limitStr := r.URL.Query().Get("limit")
+	limit := 100
+
+	// 文字列を数値へ変換
+	if limitStr != "" {
+		if n, err := strconv.Atoi(limitStr); err == nil {
+			limit = n
+		}
+	}
+
+	results, err := h.store.GetCheckResults(r.Context(), id, limit)
+	if err != nil {
+		http.Error(w, "failed to list check_resuls", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(results)
 }
 
 // コンストラクタ
