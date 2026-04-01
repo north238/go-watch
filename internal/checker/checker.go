@@ -141,9 +141,27 @@ func (c *Checker) tickerLoop(ctx context.Context) {
 				continue
 			}
 
+			cycleStart := model.CycleStart{
+				TargetCount: len(targets),
+				StartedAt:   time.Now(),
+			}
+
+			msg := model.WSMessage{
+				Type:    "cycle_start",
+				Payload: cycleStart,
+			}
+			message, err := json.Marshal(msg)
+			if err != nil {
+				log.Printf("marshal cycle_start: %v", err)
+			} else {
+				c.hub.Broadcast(message)
+			}
+
 			for _, target := range targets {
 				c.jobChannel <- target
 			}
+
+			// todo: 完了メッセージ送信処理追加（Issue6で対応予定）
 
 			cancel()
 
