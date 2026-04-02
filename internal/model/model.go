@@ -33,3 +33,22 @@ type CheckResult struct {
 	Error          string    `json:"error,omitempty"`
 	CheckedAt      time.Time `json:"checked_at"`
 }
+
+type WSMessage struct {
+	Type    string `json:"type"`
+	Payload any    `json:"payload"`
+}
+
+type CycleStart struct {
+	TargetCount int       `json:"target_count"`
+	StartedAt   time.Time `json:"started_at"`
+}
+
+type CycleComplete struct {
+	Total       int       `json:"total"`
+	Up          int       `json:"up"`
+	Down        int       `json:"down"`
+	Slow        int       `json:"slow"`
+	DurationMs  int64     `json:"duration_ms"`
+	CompletedAt time.Time `json:"completed_at"`
+}

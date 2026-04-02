@@ -2,8 +2,10 @@ package checker
 
 import (
 	"context"
+	"encoding/json"
 	"gowatch/internal/model"
 	"gowatch/internal/store"
+	"gowatch/internal/websocket"
 	"log"
 	"net/http"
 	"sync"
@@ -18,9 +20,10 @@ type Checker struct {
 	ticker        *time.Ticker
 	mu            sync.Mutex
 	running       bool
+	hub           *websocket.Hub
 }
 
-func New(workNum int, store *store.Store) *Checker {
+func New(workNum int, store *store.Store, hub *websocket.Hub) *Checker {
 	// 1. jobの初期化
 	job := make(chan model.Target, workNum)
 
@@ -33,6 +36,7 @@ func New(workNum int, store *store.Store) *Checker {
 		jobChannel:    job,
 		resultChannel: result,
 		store:         store,
+		hub:           hub,
 	}
 }
 
@@ -137,9 +141,27 @@ func (c *Checker) tickerLoop(ctx context.Context) {
 				continue
 			}
 
+			cycleStart := model.CycleStart{
+				TargetCount: len(targets),
+				StartedAt:   time.Now(),
+			}
+
+			msg := model.WSMessage{
+				Type:    "cycle_start",
+				Payload: cycleStart,
+			}
+			message, err := json.Marshal(msg)
+			if err != nil {
+				log.Printf("marshal cycle_start: %v", err)
+			} else {
+				c.hub.Broadcast(message)
+			}
+
 			for _, target := range targets {
 				c.jobChannel <- target
 			}
+
+			// todo: 完了メッセージ送信処理追加（Issue6で対応予定）
 
 			cancel()
 
@@ -150,12 +172,21 @@ func (c *Checker) tickerLoop(ctx context.Context) {
 	}
 }
 
+// 返却値を元にDB更新
 func (c *Checker) resultLoop(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case result := <-c.resultChannel:
+			// Hubへ送信
+			message, err := json.Marshal(result)
+			if err != nil {
+				log.Printf("marshal result: %v", err)
+				continue
+			}
+			c.hub.Broadcast(message)
+
 			// 保存処理
 			if err := c.store.SaveCheckResult(ctx, result); err != nil {
 				log.Printf("saver check result: %v", err)

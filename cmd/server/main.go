@@ -6,6 +6,7 @@ import (
 	"gowatch/internal/checker"
 	"gowatch/internal/handler"
 	"gowatch/internal/store"
+	"gowatch/internal/websocket"
 	"log"
 	"net/http"
 	"os"
@@ -28,6 +29,7 @@ func main() {
 	http.HandleFunc("POST /api/targets", targetHandler.Create)
 	http.HandleFunc("GET /api/targets", targetHandler.Index)
 	http.HandleFunc("DELETE /api/targets/{id}", targetHandler.Delete)
+	http.HandleFunc("GET /api/targets/{id}/history", targetHandler.History)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, "GoWatch server is running")
@@ -35,8 +37,16 @@ func main() {
 
 	ctx := context.Background()
 
-	c := checker.New(5, st)
+	// websocket起動
+	h := websocket.NewHub()
+	go h.Run(ctx)
+
+	// チェッカーの起動
+	c := checker.New(5, st, h)
 	c.Start(ctx)
+
+	wsHandler := handler.NewWSHandler(h)
+	http.HandleFunc("GET /ws", wsHandler.ServeWS)
 
 	// サーバー起動処理
 	log.Println("========== Server starting on :8080 ==========")
