@@ -10,6 +10,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 )
 
 func main() {
@@ -35,7 +38,12 @@ func main() {
 		fmt.Fprintln(w, "GoWatch server is running")
 	})
 
-	ctx := context.Background()
+	ctx, stop := signal.NotifyContext(
+		context.Background(), // 親context
+		os.Interrupt,         // SIGINT (Ctrl+C)
+		syscall.SIGTERM,      // SIGTERM (kill)
+	)
+	defer stop()
 
 	// websocket起動
 	h := websocket.NewHub()
@@ -50,7 +58,12 @@ func main() {
 
 	// サーバー起動処理
 	log.Println("========== Server starting on :8080 ==========")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
-		log.Fatal(err)
-	}
+	srv := &http.Server{Addr: ":8080"}
+	go srv.ListenAndServe()
+
+	<-ctx.Done()
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	srv.Shutdown(shutdownCtx)
 }
