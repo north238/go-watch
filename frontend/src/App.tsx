@@ -86,7 +86,11 @@ function App() {
     }
   }, []);
 
-  useWebSocket(handleMessage);
+  useWebSocket({
+    onMessage: handleMessage,
+    onConnect: () => dispatch({ type: 'SET_CONNECTED', payload: true }),
+    onDisconnect: () => dispatch({ type: 'SET_CONNECTED', payload: false }),
+  });
 
   const targets = Array.from(state.targets.values());
 

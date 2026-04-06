@@ -3,7 +3,13 @@ import type { WSMessage } from '../types';
 
 const WS_URL = 'ws://localhost:8080/ws';
 
-export const useWebSocket = (onMessage: (msg: WSMessage) => void) => {
+type Props = {
+  onMessage: (msg: WSMessage) => void;
+  onConnect: () => void;
+  onDisconnect: () => void;
+};
+
+export const useWebSocket = ({ onMessage, onConnect, onDisconnect }: Props) => {
   const wsRef = useRef<WebSocket | null>(null);
   const onMessageRef = useRef(onMessage);
 
@@ -17,6 +23,7 @@ export const useWebSocket = (onMessage: (msg: WSMessage) => void) => {
 
     ws.onopen = () => {
       console.log('WebSocket connected');
+      onConnect();
     };
 
     ws.onmessage = (event) => {
@@ -30,6 +37,7 @@ export const useWebSocket = (onMessage: (msg: WSMessage) => void) => {
 
     ws.onclose = () => {
       console.log('WebSocket disconnected, reconnecting...');
+      onDisconnect();
       // 3秒後に再接続
       setTimeout(connect, 3000);
     };
