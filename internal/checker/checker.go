@@ -21,6 +21,12 @@ type Checker struct {
 	mu            sync.Mutex
 	running       bool
 	hub           *websocket.Hub
+	cycleStart    time.Time
+	cycleUp       int
+	cycleDown     int
+	cycleSlow     int
+	cycleExpected int
+	cycleDone     int
 }
 
 func New(workNum int, store *store.Store, hub *websocket.Hub) *Checker {
@@ -141,9 +147,11 @@ func (c *Checker) tickerLoop(ctx context.Context) {
 				continue
 			}
 
+			now := time.Now()
+
 			cycleStart := model.CycleStart{
 				TargetCount: len(targets),
-				StartedAt:   time.Now(),
+				StartedAt:   now,
 			}
 
 			msg := model.WSMessage{
@@ -161,12 +169,16 @@ func (c *Checker) tickerLoop(ctx context.Context) {
 				c.jobChannel <- target
 			}
 
-			// todo: 完了メッセージ送信処理追加（Issue6で対応予定）
-
 			cancel()
 
 			c.mu.Lock()
 			c.running = false
+			c.cycleStart = now
+			c.cycleExpected = len(targets)
+			c.cycleDone = 0
+			c.cycleUp = 0
+			c.cycleDown = 0
+			c.cycleSlow = 0
 			c.mu.Unlock()
 		}
 	}
@@ -203,6 +215,48 @@ func (c *Checker) resultLoop(ctx context.Context) {
 			if err := c.store.DeleteOldCheckResults(ctx, result.TargetID); err != nil {
 				log.Printf("delete old check result: %v", err)
 				continue
+			}
+
+			// サイクル集計
+			c.mu.Lock()
+			switch result.Status {
+			case model.StatusUp:
+				c.cycleUp++
+			case model.StatusDown:
+				c.cycleDown++
+			case model.StatusSlow:
+				c.cycleSlow++
+			}
+			c.cycleDone++
+			done := c.cycleDone
+			expected := c.cycleExpected
+			cycleStart := c.cycleStart
+			up := c.cycleUp
+			down := c.cycleDown
+			slow := c.cycleSlow
+			c.mu.Unlock()
+
+			// 全件揃ったらcycle_completeを送る
+			if expected > 0 && done >= expected {
+				cycleComplete := model.CycleComplete{
+					Total:       expected,
+					Up:          up,
+					Down:        down,
+					Slow:        slow,
+					DurationMs:  time.Since(cycleStart).Milliseconds(),
+					CompletedAt: time.Now(),
+				}
+				msg := model.WSMessage{
+					Type:    "cycle_complete",
+					Payload: cycleComplete,
+				}
+				message, err := json.Marshal(msg)
+				if err != nil {
+					log.Printf("marshal cycle_complete: %v", err)
+					continue
+				} else {
+					c.hub.Broadcast(message)
+				}
 			}
 		}
 	}
