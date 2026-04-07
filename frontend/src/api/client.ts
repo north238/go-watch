@@ -1,4 +1,4 @@
-import type { Target } from '../types';
+import type { CheckResult, Target } from '../types';
 
 const BASE_URL = 'http://localhost:8080';
 
@@ -7,7 +7,7 @@ export const api = {
   getTargets: async (): Promise<Target[]> => {
     const res = await fetch(`${BASE_URL}/api/targets`);
     if (!res.ok) throw new Error('Failed to fetch targets');
-    return res.json();
+    return res.json() as Promise<Target[]>;
   },
 
   // URL登録
@@ -30,9 +30,9 @@ export const api = {
   },
 
   // 履歴取得
-  getHistory: async (id: string, limit = 100) => {
+  getHistory: async (id: string, limit = 100): Promise<CheckResult[]> => {
     const res = await fetch(`${BASE_URL}/api/targets/${id}/history?limit=${limit}`);
     if (!res.ok) throw new Error('Failed to fetch history');
-    return res.json();
+    return res.json() as Promise<CheckResult[]>;
   },
 };
