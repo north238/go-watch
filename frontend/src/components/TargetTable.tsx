@@ -4,9 +4,11 @@ import { TargetRow } from './TargetRow';
 type Props = {
   targets: Target[];
   onDelete: (id: string) => void;
+  onSelect: (id: string) => void;
+  selectedTargetId: string | null;
 };
 
-export function TargetTable({ targets, onDelete }: Props) {
+export function TargetTable({ targets, onDelete, onSelect, selectedTargetId }: Props) {
   if (targets.length === 0) {
     return <p>監視対象がありません。URLを追加してください。</p>;
   }
@@ -23,7 +25,13 @@ export function TargetTable({ targets, onDelete }: Props) {
       </thead>
       <tbody>
         {targets.map((target) => (
-          <TargetRow key={target.id} target={target} onDelete={onDelete} />
+          <TargetRow
+            key={target.id}
+            target={target}
+            onDelete={onDelete}
+            onSelect={onSelect}
+            isSelected={selectedTargetId === target.id}
+          />
         ))}
       </tbody>
     </table>

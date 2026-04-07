@@ -1,4 +1,4 @@
-import { useReducer, useEffect, useCallback, useState } from 'react';
+import { useReducer, useEffect, useCallback, useState, useRef } from 'react';
 import type { Target, CheckResult, WSMessage, CycleComplete } from './types';
 import { api } from './api/client';
 import { useWebSocket } from './hooks/useWebSocket';
@@ -6,6 +6,8 @@ import { Header } from './components/Header';
 import { SummaryCards } from './components/SummaryCards';
 import { TargetTable } from './components/TargetTable';
 import { AddTargetModal } from './components/AddTargetModal';
+import { ResponseChart } from './components/ResponseChart';
+import { Toast } from './components/Toast';
 
 type State = {
   targets: Map<string, Target>;
@@ -68,6 +70,8 @@ function reducer(state: State, action: Action): State {
 function App() {
   const [state, dispatch] = useReducer(reducer, initialState);
   const [showModal, setShowModal] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const targets: Target[] = Array.from(state.targets.values());
 
   useEffect(() => {
     api.getTargets().then((targets) => {
@@ -75,9 +79,22 @@ function App() {
     });
   }, []);
 
+  const targetsRef = useRef(state.targets);
+
+  useEffect(() => {
+    targetsRef.current = state.targets;
+  }, [state.targets]);
+
   const handleMessage = useCallback((msg: WSMessage) => {
     switch (msg.type) {
       case 'check_result':
+        // DOWN検知時にトースト表示
+        if (msg.payload.status === 'down') {
+          const target = targetsRef.current.get(msg.payload.target_id);
+          setToast(
+            `${target?.name ?? '不明'} (${target?.url ?? msg.payload.target_id}) がDOWNしました`
+          );
+        }
         dispatch({ type: 'UPDATE_TARGET', payload: msg.payload });
         break;
       case 'cycle_complete':
@@ -92,8 +109,6 @@ function App() {
     onDisconnect: () => dispatch({ type: 'SET_CONNECTED', payload: false }),
   });
 
-  const targets = Array.from(state.targets.values());
-
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
       <Header connected={state.connected} onAddClick={() => setShowModal(true)} />
@@ -102,8 +117,18 @@ function App() {
         <TargetTable
           targets={targets}
           onDelete={(id) => dispatch({ type: 'DELETE_TARGET', payload: id })}
+          onSelect={(id) => dispatch({ type: 'SELECT_TARGET', payload: id })}
+          selectedTargetId={state.selectedTargetId}
         />
       </div>
+      {toast && <Toast message={toast} onClose={() => setToast(null)} />}
+      {state.selectedTargetId && (
+        <ResponseChart
+          targetId={state.selectedTargetId}
+          targetName={state.targets.get(state.selectedTargetId)?.name ?? ''}
+          lastCycle={state.lastCycle}
+        />
+      )}
       {showModal && (
         <AddTargetModal
           onAdd={(target) => dispatch({ type: 'ADD_TARGET', payload: target })}

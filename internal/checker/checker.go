@@ -192,7 +192,11 @@ func (c *Checker) resultLoop(ctx context.Context) {
 			return
 		case result := <-c.resultChannel:
 			// Hubへ送信
-			message, err := json.Marshal(result)
+			msg := model.WSMessage{
+				Type:    "check_result",
+				Payload: result,
+			}
+			message, err := json.Marshal(msg)
 			if err != nil {
 				log.Printf("marshal result: %v", err)
 				continue

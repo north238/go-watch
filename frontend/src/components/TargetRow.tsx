@@ -4,6 +4,8 @@ import type { Target } from '../types';
 type Props = {
   target: Target;
   onDelete: (id: string) => void;
+  onSelect: (id: string) => void;
+  isSelected: boolean;
 };
 
 const statusColor: Record<string, string> = {
@@ -13,7 +15,7 @@ const statusColor: Record<string, string> = {
   unknown: 'gray',
 };
 
-export function TargetRow({ target, onDelete }: Props) {
+export function TargetRow({ target, onDelete, onSelect, isSelected }: Props) {
   const handleDelete = async () => {
     try {
       await api.deleteTarget(target.id);
@@ -24,12 +26,31 @@ export function TargetRow({ target, onDelete }: Props) {
   };
 
   return (
-    <tr>
-      <td>{target.name}</td>
-      <td>{target.url}</td>
-      <td style={{ color: statusColor[target.status] }}>{target.status.toUpperCase()}</td>
-      <td>
-        <button onClick={handleDelete}>削除</button>
+    <tr
+      onClick={() => onSelect(target.id)}
+      style={{
+        cursor: 'pointer',
+        backgroundColor: isSelected
+          ? '#f0f0ff'
+          : target.status === 'down'
+            ? '#fff0f0'
+            : 'transparent',
+      }}
+    >
+      <td style={{ padding: '8px' }}>{target.name}</td>
+      <td style={{ padding: '8px' }}>{target.url}</td>
+      <td style={{ padding: '8px', color: statusColor[target.status] }}>
+        {target.status.toUpperCase()}
+      </td>
+      <td style={{ padding: '8px' }}>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleDelete();
+          }}
+        >
+          削除
+        </button>
       </td>
     </tr>
   );
