@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import type { WSMessage } from '../types';
 
-const WS_URL = 'ws://localhost:8080/ws';
+const WS_URL = import.meta.env.VITE_WS_URL ?? 'ws://localhost:8080/ws';
 
 type Props = {
   onMessage: (msg: WSMessage) => void;
