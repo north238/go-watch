@@ -25,6 +25,7 @@ services:
       - gowatch_node_modules:/app/node_modules
     environment:
       - VITE_API_URL=http://localhost:8080
+      - VITE_WS_URL=ws://localhost:8080/ws
     tty: true
 
 volumes:
