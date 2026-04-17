@@ -272,3 +272,45 @@ WebSocket 接続・URL 追加モーダル・ステータス一覧テーブル・
 - [ ] README に動機・アーキテクチャ・セットアップ手順・技術ハイライトが記載されている
 - [ ] README のセットアップ手順に従って第三者が起動できる
 - [ ] デモ動画 (or GIF) が README に埋め込まれている
+
+---
+
+## Issue #9: Slack 通知機能の追加
+
+**Labels:** `backend` `feature`
+
+### 説明
+
+DOWN 検知時に Slack へ通知を送る機能を追加する。
+通知先を将来 Discord 等に切り替え・追加できる設計にするため、
+`internal/checker` に `Notifier` interface を定義し、`internal/notifier` に実装を置く。
+通知失敗時はシステムを止めず、Toast でユーザーへフィードバックする。
+
+### やること
+
+- `internal/checker/checker.go` に `Notifier` interface を追加
+  - `type Notifier interface { Notify(message string) error }`
+  - DOWN 検知時に `Notifier.Notify()` を呼び出す
+  - 通知失敗時はログ出力 + Hub 経由で `notification_error` メッセージを送信
+- `internal/notifier/slack.go` — SlackNotifier 実装
+  - Incoming Webhook を使った通知送信
+  - `Notify(message string) error` メソッドを実装
+- `internal/websocket/hub.go` に `notification_error` メッセージタイプを追加
+- `cmd/server/main.go` で SlackNotifier を Checker に注入
+  - `SLACK_WEBHOOK_URL` 環境変数から Webhook URL を取得
+  - URL 未設定の場合は通知なしで起動
+- `docker-compose.yml` に `SLACK_WEBHOOK_URL` 環境変数を追加
+
+### 受け入れ条件 (AC)
+
+- [ ] DOWN 検知時に Slack へ通知が届く
+- [ ] Slack 通知が失敗してもヘルスチェックが継続される
+- [ ] 通知失敗時に Toast が表示される
+- [ ] `SLACK_WEBHOOK_URL` 未設定でもサーバーが正常起動する
+- [ ] `checker` パッケージが `notifier` パッケージを import していない
+- [ ] `go build ./cmd/server` がエラーなく通る
+
+### 関連
+
+- 設計ドキュメント §4 (Out of Scope → 拡張候補)
+- 将来の拡張: `internal/notifier/discord.go` を追加するだけで Discord 通知に対応できる

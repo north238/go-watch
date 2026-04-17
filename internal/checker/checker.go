@@ -3,6 +3,7 @@ package checker
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"gowatch/internal/model"
 	"gowatch/internal/store"
 	"gowatch/internal/websocket"
@@ -11,6 +12,10 @@ import (
 	"sync"
 	"time"
 )
+
+type Notifier interface {
+	Notify(message string) error
+}
 
 type Checker struct {
 	workNum       int
@@ -27,9 +32,10 @@ type Checker struct {
 	cycleSlow     int
 	cycleExpected int
 	cycleDone     int
+	notifier      Notifier
 }
 
-func New(workNum int, store *store.Store, hub *websocket.Hub) *Checker {
+func New(workNum int, store *store.Store, hub *websocket.Hub, notifier Notifier) *Checker {
 	// 1. jobの初期化
 	job := make(chan model.Target, workNum)
 
@@ -43,6 +49,7 @@ func New(workNum int, store *store.Store, hub *websocket.Hub) *Checker {
 		resultChannel: result,
 		store:         store,
 		hub:           hub,
+		notifier:      notifier,
 	}
 }
 
@@ -92,6 +99,14 @@ func (c *Checker) worker(ctx context.Context) {
 			elapsed := time.Since(start).Milliseconds()
 
 			status := c.judgeStatus(resp.StatusCode, elapsed)
+
+			if status == model.StatusDown {
+				message := fmt.Sprintf("DOWN: %s", target.URL)
+				err := c.notifier.Notify(message)
+				if err != nil {
+					log.Printf("feild to send notify: %v", err)
+				}
+			}
 
 			var result = model.CheckResult{
 				TargetID:       target.ID,
