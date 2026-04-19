@@ -77,6 +77,7 @@ func (c *Checker) worker(ctx context.Context) {
 			// targetを処理する
 			// 確認したいURLを検証する
 			start := time.Now()
+
 			cycleCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 			req, err := http.NewRequestWithContext(cycleCtx, http.MethodGet, target.URL, nil)
 			if err != nil {
@@ -91,6 +92,26 @@ func (c *Checker) worker(ctx context.Context) {
 					Error:     err.Error(),
 					CheckedAt: time.Now(),
 				}
+
+				// 通知処理
+				notifyMsg := fmt.Sprintf("DOWN: %s", target.URL)
+				notifyErr := c.notifier.Notify(notifyMsg)
+				if notifyErr != nil {
+					log.Printf("feild to send notify: %v", notifyErr)
+
+					// フロントエンドに情報を通知
+					msg := model.WSMessage{
+						Type:    "notification_error",
+						Payload: "エラー通知設定のURLを確認してください",
+					}
+					wsMsg, jsonErr := json.Marshal(msg)
+					if jsonErr != nil {
+						log.Printf("marshal notification_error: %v", jsonErr)
+					} else {
+						c.hub.Broadcast(wsMsg)
+					}
+				}
+
 				cancel()
 				continue
 			}
@@ -99,14 +120,6 @@ func (c *Checker) worker(ctx context.Context) {
 			elapsed := time.Since(start).Milliseconds()
 
 			status := c.judgeStatus(resp.StatusCode, elapsed)
-
-			if status == model.StatusDown {
-				message := fmt.Sprintf("DOWN: %s", target.URL)
-				err := c.notifier.Notify(message)
-				if err != nil {
-					log.Printf("feild to send notify: %v", err)
-				}
-			}
 
 			var result = model.CheckResult{
 				TargetID:       target.ID,
@@ -187,7 +200,6 @@ func (c *Checker) tickerLoop(ctx context.Context) {
 			cancel()
 
 			c.mu.Lock()
-			c.running = false
 			c.cycleStart = now
 			c.cycleExpected = len(targets)
 			c.cycleDone = 0
@@ -257,6 +269,10 @@ func (c *Checker) resultLoop(ctx context.Context) {
 
 			// 全件揃ったらcycle_completeを送る
 			if expected > 0 && done >= expected {
+				c.mu.Lock()
+				c.running = false
+				c.mu.Unlock()
+
 				cycleComplete := model.CycleComplete{
 					Total:       expected,
 					Up:          up,

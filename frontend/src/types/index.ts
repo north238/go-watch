@@ -24,7 +24,8 @@ export type WSMessage =
   | { type: 'check_result'; payload: CheckResult }
   | { type: 'cycle_start'; payload: CycleStart }
   | { type: 'cycle_complete'; payload: CycleComplete }
-  | { type: 'targets_updated'; payload: Target[] };
+  | { type: 'targets_updated'; payload: Target[] }
+  | { type: 'notification_error'; payload: string };
 
 export type CycleStart = {
   target_count: number;

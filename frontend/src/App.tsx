@@ -70,7 +70,7 @@ function reducer(state: State, action: Action): State {
 function App() {
   const [state, dispatch] = useReducer(reducer, initialState);
   const [showModal, setShowModal] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toasts, setToasts] = useState<string[]>([]);
   const targets: Target[] = Array.from(state.targets.values());
 
   useEffect(() => {
@@ -91,15 +91,17 @@ function App() {
         // DOWN検知時にトースト表示
         if (msg.payload.status === 'down') {
           const target = targetsRef.current.get(msg.payload.target_id);
-          setToast(
-            `${target?.name ?? '不明'} (${target?.url ?? msg.payload.target_id}) がDOWNしました`
-          );
+          setToasts(prev => [...prev, `${target?.name ?? '不明'} (${target?.url ?? msg.payload.target_id}) がDOWNしました`]);
         }
         dispatch({ type: 'UPDATE_TARGET', payload: msg.payload });
         break;
       case 'cycle_complete':
         dispatch({ type: 'SET_LAST_CYCLE', payload: msg.payload });
         break;
+      case 'notification_error': {
+        setToasts(prev => [...prev, `エラー： ${msg.payload}`]);
+        break;
+      }
     }
   }, []);
 
@@ -121,7 +123,11 @@ function App() {
           selectedTargetId={state.selectedTargetId}
         />
       </div>
-      {toast && <Toast message={toast} onClose={() => setToast(null)} />}
+      {toasts && toasts.map((message, index) => (
+        <div key={index}>
+          <Toast message={message} index={index} onClose={() => setToasts(prev => prev.filter((_, i) => i !== index))} />
+        </div>
+      ))}
       {state.selectedTargetId && (
         <ResponseChart
           targetId={state.selectedTargetId}

@@ -2,10 +2,11 @@ import { useEffect } from 'react';
 
 type Props = {
   message: string;
+  index: number;
   onClose: () => void;
 };
 
-export function Toast({ message, onClose }: Props) {
+export function Toast({ message, index, onClose }: Props) {
   useEffect(() => {
     const timer = setTimeout(onClose, 5000);
     return () => clearTimeout(timer);
@@ -15,7 +16,7 @@ export function Toast({ message, onClose }: Props) {
     <div
       style={{
         position: 'fixed',
-        top: '16px',
+        top: `${16 + index * 70}px`,
         right: '16px',
         background: '#ef4444',
         color: '#fff',
