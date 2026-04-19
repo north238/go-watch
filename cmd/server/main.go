@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"gowatch/internal/checker"
 	"gowatch/internal/handler"
+	"gowatch/internal/notifier"
 	"gowatch/internal/store"
 	"gowatch/internal/websocket"
 	"log"
@@ -45,12 +46,20 @@ func main() {
 	)
 	defer stop()
 
+	webhookURL := os.Getenv("SLACK_WEBHOOK_URL")
+	var n checker.Notifier
+	if webhookURL == "" {
+		n = &notifier.NopNotifier{}
+	} else {
+		n = notifier.NewSlackNotifier(webhookURL)
+	}
+
 	// websocket起動
 	h := websocket.NewHub()
 	go h.Run(ctx)
 
 	// チェッカーの起動
-	c := checker.New(5, st, h)
+	c := checker.New(5, st, h, n)
 	c.Start(ctx)
 
 	wsHandler := handler.NewWSHandler(h)
@@ -59,8 +68,8 @@ func main() {
 	// サーバー起動処理
 	log.Println("========== Server starting on :8080 ==========")
 	srv := &http.Server{
-    Addr:    ":8080",
-    Handler: corsMiddleware(http.DefaultServeMux),
+		Addr:    ":8080",
+		Handler: corsMiddleware(http.DefaultServeMux),
 	}
 	go srv.ListenAndServe()
 

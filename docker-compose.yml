@@ -11,6 +11,9 @@ services:
     environment:
       - DB_PATH=/data/gowatch.db
       - GO_ENV=development
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+    env_file:
+      - .env
     depends_on: []
     tty: true
 

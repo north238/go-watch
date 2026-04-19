@@ -3,6 +3,7 @@ package checker
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"gowatch/internal/model"
 	"gowatch/internal/store"
 	"gowatch/internal/websocket"
@@ -11,6 +12,10 @@ import (
 	"sync"
 	"time"
 )
+
+type Notifier interface {
+	Notify(message string) error
+}
 
 type Checker struct {
 	workNum       int
@@ -27,9 +32,10 @@ type Checker struct {
 	cycleSlow     int
 	cycleExpected int
 	cycleDone     int
+	notifier      Notifier
 }
 
-func New(workNum int, store *store.Store, hub *websocket.Hub) *Checker {
+func New(workNum int, store *store.Store, hub *websocket.Hub, notifier Notifier) *Checker {
 	// 1. jobの初期化
 	job := make(chan model.Target, workNum)
 
@@ -43,6 +49,7 @@ func New(workNum int, store *store.Store, hub *websocket.Hub) *Checker {
 		resultChannel: result,
 		store:         store,
 		hub:           hub,
+		notifier:      notifier,
 	}
 }
 
@@ -70,6 +77,7 @@ func (c *Checker) worker(ctx context.Context) {
 			// targetを処理する
 			// 確認したいURLを検証する
 			start := time.Now()
+
 			cycleCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 			req, err := http.NewRequestWithContext(cycleCtx, http.MethodGet, target.URL, nil)
 			if err != nil {
@@ -84,6 +92,26 @@ func (c *Checker) worker(ctx context.Context) {
 					Error:     err.Error(),
 					CheckedAt: time.Now(),
 				}
+
+				// 通知処理
+				notifyMsg := fmt.Sprintf("DOWN: %s", target.URL)
+				notifyErr := c.notifier.Notify(notifyMsg)
+				if notifyErr != nil {
+					log.Printf("feild to send notify: %v", notifyErr)
+
+					// フロントエンドに情報を通知
+					msg := model.WSMessage{
+						Type:    "notification_error",
+						Payload: "エラー通知設定のURLを確認してください",
+					}
+					wsMsg, jsonErr := json.Marshal(msg)
+					if jsonErr != nil {
+						log.Printf("marshal notification_error: %v", jsonErr)
+					} else {
+						c.hub.Broadcast(wsMsg)
+					}
+				}
+
 				cancel()
 				continue
 			}
@@ -172,7 +200,6 @@ func (c *Checker) tickerLoop(ctx context.Context) {
 			cancel()
 
 			c.mu.Lock()
-			c.running = false
 			c.cycleStart = now
 			c.cycleExpected = len(targets)
 			c.cycleDone = 0
@@ -242,6 +269,10 @@ func (c *Checker) resultLoop(ctx context.Context) {
 
 			// 全件揃ったらcycle_completeを送る
 			if expected > 0 && done >= expected {
+				c.mu.Lock()
+				c.running = false
+				c.mu.Unlock()
+
 				cycleComplete := model.CycleComplete{
 					Total:       expected,
 					Up:          up,

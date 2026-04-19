@@ -11,6 +11,7 @@ type Props = {
 
 export const useWebSocket = ({ onMessage, onConnect, onDisconnect }: Props) => {
   const wsRef = useRef<WebSocket | null>(null);
+  const isCleanedUp = useRef(false);
   const onMessageRef = useRef(onMessage);
 
   // onMessageが変わっても最新を参照する
@@ -38,8 +39,9 @@ export const useWebSocket = ({ onMessage, onConnect, onDisconnect }: Props) => {
     ws.onclose = () => {
       console.log('WebSocket disconnected, reconnecting...');
       onDisconnect();
-      // 3秒後に再接続
-      setTimeout(connect, 3000);
+      if (!isCleanedUp.current) {
+        setTimeout(connect, 3000);  // クリーンアップ済みなら再接続しない
+      }
     };
 
     ws.onerror = (e) => {
@@ -52,6 +54,7 @@ export const useWebSocket = ({ onMessage, onConnect, onDisconnect }: Props) => {
   useEffect(() => {
     connect();
     return () => {
+      isCleanedUp.current = true;
       wsRef.current?.close();
     };
   }, [connect]);
