@@ -1,5 +1,3 @@
-# GoWatchを作りながら学ぶGoの並行処理 #1 — goroutineとchannelの基本
-
 ## はじめに
 
 この記事は、URLヘルスモニタリングツール **GoWatch** を実装しながらGoの並行処理を学んだ記録です。
@@ -96,7 +94,7 @@ ch <- "c"
 
 GoWatchのチェック処理を担う `checker` パッケージでは、goroutineとchannelを次のような形で使っています。
 
-```
+```text
 [tickerLoop goroutine]
     │ 一定間隔でチェック対象URLを送信
     ▼
@@ -137,3 +135,12 @@ GoWatchのチェック処理を担う `checker` パッケージでは、goroutin
 - [Go by Example - Goroutines](https://gobyexample.com/goroutines)
 - [Go by Example - Channels](https://gobyexample.com/channels)
 - [pkg.go.dev/context](https://pkg.go.dev/context)
+
+---
+
+## 関連記事リンク
+
+- [GoWatchを作りながら学ぶGoの並行処理 #1 — goroutineとchannelの基本](https://qiita.com/north238/items/b495549b326bb7a1a033)
+- [GoWatchを作りながら学ぶGoの並行処理 #2 — Worker Poolパターンでgoroutineを制御する](https://qiita.com/north238/items/b04935ef461432c04e5a)
+- [GoWatchを作りながら学ぶGoの並行処理 #3 — contextでキャンセルを伝播させる](https://qiita.com/north238/items/310531fd0d8052bd137c)
+- [GoWatchを作りながら学ぶGoの並行処理 #4 — 実装してわかったハマりどころまとめ](https://qiita.com/north238/items/3149d00f1b3612725f41)

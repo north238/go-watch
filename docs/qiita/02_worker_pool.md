@@ -1,8 +1,7 @@
-# GoWatchを作りながら学ぶGoの並行処理 #2 — Worker Poolパターンでgoroutineを制御する
-
 ## はじめに
 
 前回はgoroutineとchannelの基本を学びました。
+▶ [前回記事](https://qiita.com/north238/items/b495549b326bb7a1a033)
 
 - goroutineは `go` キーワードで起動できる軽量な並行実行の単位
 - channelはgoroutine間で値を安全に渡すための通路
@@ -36,7 +35,7 @@ for _, url := range urls {
 
 Worker Poolパターンは、あらかじめ決まった数のworker（goroutine）を起動しておき、jobsをchannelで渡すことで並列数を制御するパターンです。
 
-```
+```text
 [送信側]
     │ jobsをchannelに送信
     ▼
@@ -167,3 +166,12 @@ func (c *Checker) tickerLoop(ctx context.Context) {
 - [Go by Example - Worker Pools](https://gobyexample.com/worker-pools)
 - [Go by Example - Channels](https://gobyexample.com/channels)
 - [pkg.go.dev/context](https://pkg.go.dev/context)
+
+---
+
+## 関連記事リンク
+
+- [GoWatchを作りながら学ぶGoの並行処理 #1 — goroutineとchannelの基本](https://qiita.com/north238/items/b495549b326bb7a1a033)
+- [GoWatchを作りながら学ぶGoの並行処理 #2 — Worker Poolパターンでgoroutineを制御する](https://qiita.com/north238/items/b04935ef461432c04e5a)
+- [GoWatchを作りながら学ぶGoの並行処理 #3 — contextでキャンセルを伝播させる](https://qiita.com/north238/items/310531fd0d8052bd137c)
+- [GoWatchを作りながら学ぶGoの並行処理 #4 — 実装してわかったハマりどころまとめ](https://qiita.com/north238/items/3149d00f1b3612725f41)
